@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PGET Mock Exams</title>
+<meta name="description" content="Two 100-MCQ mock exams for the UHS PGET: Paper I (Basic Sciences) and Paper II (Obstetrics & Gynaecology).">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main class="wrap stack">
+  <header class="hero">
+    <span class="pill">UHS PGET practice</span>
+    <h1 style="margin-top:10px">PGET Mock Exams</h1>
+    <p class="muted" style="margin:0">Two full-length mock papers built on the official UHS Table of Specifications. Each has 100 single-best-answer MCQs and a 2-hour timer. When you submit, you get your score, a subject-wise breakdown and an explanation for every question you got wrong.</p>
+  </header>
+
+  <section class="exam-grid">
+    <article class="card exam-card stack" data-exam="paper1">
+      <div>
+        <h2>Paper I</h2>
+        <div class="muted">Basic Medical Sciences</div>
+      </div>
+      <p class="small muted" style="margin:0">Anatomy 20 · Physiology 19 · Biochemistry 11 · Pathology 13 · Pharmacology 13 · Community Medicine 12 · Microbiology 7 · Behavioral Sciences 5</p>
+      <div class="status-line"></div>
+      <a class="btn primary" href="exam.html?exam=paper1">Open Paper I →</a>
+    </article>
+
+    <article class="card exam-card stack" data-exam="obgyn">
+      <div>
+        <h2>Paper II</h2>
+        <div class="muted">Obstetrics &amp; Gynaecology</div>
+      </div>
+      <p class="small muted" style="margin:0">Reproductive Physiology 23 · Pathology 21 · Maternal Pharmacology 19 · Anatomy 15 · Antenatal Care 10 · Biostatistics 5 · Biochemistry 3 · Blood Disorders 2 · Infections 2 (incl. 11 attitude-domain)</p>
+      <div class="status-line"></div>
+      <a class="btn primary" href="exam.html?exam=obgyn">Open Paper II →</a>
+    </article>
+  </section>
+
+  <p class="small muted">Progress is saved in this browser, so you can close the tab and resume later. These are practice questions written to the UHS syllabus, not past papers. Check anything you're unsure about against your textbooks.</p>
+</main>
+<script>
+  document.querySelectorAll('[data-exam]').forEach(function (card) {
+    var id = card.getAttribute('data-exam'), line = card.querySelector('.status-line'), btn = card.querySelector('.btn');
+    try {
+      var s = JSON.parse(localStorage.getItem('pget-' + id + '-v1') || 'null');
+      if (!s) return;
+      if (s.submitted) {
+        line.textContent = 'Last score: ' + s.result.correct + ' / ' + s.result.total;
+        btn.textContent = 'View results →';
+      } else {
+        var n = Object.keys(s.answers || {}).length;
+        line.textContent = 'In progress: ' + n + ' of 100 answered';
+        btn.textContent = 'Resume →';
+      }
+    } catch (e) {}
+  });
+</script>
+</body>
+</html>
