@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
 <title>PGET Mock Exam</title>
 <link rel="stylesheet" href="assets/style.css">
 </head>
@@ -38,9 +39,10 @@
 <div id="exam" class="hidden">
   <div class="topbar">
     <div class="inner">
-      <span class="title" id="e-title"></span>
+      <span class="title hide-sm" id="e-title"></span>
+      <span class="title show-sm" id="e-pos"></span>
       <span class="spacer"></span>
-      <span class="small muted" id="e-count"></span>
+      <span class="small muted hide-sm" id="e-count"></span>
       <span class="timer" id="e-timer" aria-live="off"></span>
       <button class="btn primary" id="e-submit">Submit</button>
     </div>
@@ -52,19 +54,22 @@
         <div class="q-meta" id="q-meta"></div>
         <p class="q-stem" id="q-stem"></p>
         <div class="opts" id="q-opts" role="radiogroup"></div>
-        <div class="q-actions">
-          <button class="btn" id="q-prev">← Previous</button>
-          <button class="btn ghost" id="q-flag">⚑ Flag for review</button>
-          <button class="btn ghost" id="q-clear">Clear answer</button>
-          <span class="spacer"></span>
+        <button class="linkbtn hidden" id="q-clear">Clear my answer</button>
+        <div class="q-actions" id="q-actions">
+          <button class="btn" id="q-prev" aria-label="Previous question">←<span class="hide-xs">&nbsp;Previous</span></button>
+          <button class="btn ghost" id="q-flag" aria-label="Flag for review">⚑<span class="flag-lbl">&nbsp;Flag for review</span></button>
+          <button class="btn ghost show-sm" id="nav-open" aria-label="Open question list">☰&nbsp;<span id="nav-open-lbl"></span></button>
+          <span class="spacer hide-sm"></span>
           <button class="btn primary" id="q-next">Next →</button>
         </div>
-        <p class="small muted" style="margin:14px 0 0">Keyboard: A–E or 1–5 to answer, ← → to move, F to flag.</p>
+        <p class="small muted kbd-hint" style="margin:14px 0 0">Keyboard: A–E or 1–5 to answer, ← → to move, F to flag.</p>
+        <p class="small muted touch-hint" style="margin:14px 0 0">Tip: swipe left or right on the question to move between questions.</p>
       </section>
-      <aside class="card nav-panel collapsed" id="nav-panel">
+      <div class="sheet-back" id="sheet-back"></div>
+      <aside class="card nav-panel" id="nav-panel" aria-label="Question list">
         <div class="row" style="justify-content:space-between">
           <h3 style="margin:0">Questions</h3>
-          <button class="btn ghost nav-toggle small" id="nav-toggle" style="min-height:32px;padding:4px 10px">Show</button>
+          <button class="btn ghost show-sm" id="nav-close" style="min-height:36px;padding:4px 12px">Close</button>
         </div>
         <div class="nav-body" style="margin-top:10px">
           <div class="nav-grid" id="nav-grid"></div>

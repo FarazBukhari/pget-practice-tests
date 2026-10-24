@@ -67,7 +67,7 @@
   function renderStart(saved) {
     $('s-title').textContent = exam.title;
     $('s-sub').textContent = exam.subtitle;
-    $('s-dur').textContent = fmtDuration(exam.durationMin * 60);
+    $('s-dur').textContent = exam.durationMin % 60 === 0 ? (exam.durationMin / 60) + ' hours' : fmtDuration(exam.durationMin * 60);
 
     var bySub = {}, order = [];
     Q.forEach(function (q) {
@@ -75,10 +75,10 @@
       bySub[q.subject].n++;
       bySub[q.subject].topics[q.topic] = (bySub[q.subject].topics[q.topic] || 0) + 1;
     });
-    var html = '<thead><tr><th>Subject</th><th>Topics</th><th class="num">MCQs</th></tr></thead><tbody>';
+    var html = '<thead><tr><th>Subject &amp; topics</th><th class="num">MCQs</th></tr></thead><tbody>';
     order.forEach(function (s) {
-      var t = Object.keys(bySub[s].topics).map(function (k) { return esc(k) + ' (' + bySub[s].topics[k] + ')'; }).join(', ');
-      html += '<tr><td><b>' + esc(s) + '</b></td><td class="small muted">' + t + '</td><td class="num">' + bySub[s].n + '</td></tr>';
+      var t = Object.keys(bySub[s].topics).map(function (k) { return esc(k) + ' (' + bySub[s].topics[k] + ')'; }).join(' · ');
+      html += '<tr><td><b>' + esc(s) + '</b><div class="small muted">' + t + '</div></td><td class="num"><b>' + bySub[s].n + '</b></td></tr>';
     });
     $('s-blueprint').innerHTML = html + '</tbody>';
 
@@ -140,17 +140,20 @@
     Q.forEach(function (q, i) {
       var b = el('button', 'nav-cell', String(i + 1));
       b.setAttribute('aria-label', 'Question ' + (i + 1));
-      b.onclick = function () { go(i); if (window.innerWidth <= 820) togglePanel(true); };
+      b.onclick = function () { closeSheet(); go(i); };
       g.appendChild(b);
     });
-    $('nav-toggle').onclick = function () { togglePanel(); };
+    $('nav-open').onclick = openSheet;
+    $('nav-close').onclick = closeSheet;
+    $('sheet-back').onclick = closeSheet;
   }
-  function togglePanel(forceCollapse) {
-    var p = $('nav-panel');
-    var collapse = forceCollapse === true ? true : !p.classList.contains('collapsed');
-    p.classList.toggle('collapsed', collapse);
-    $('nav-toggle').textContent = collapse ? 'Show' : 'Hide';
+  function openSheet() {
+    $('nav-panel').classList.add('open'); $('sheet-back').classList.add('open');
+    var cur = $('nav-grid').children[state.current];
+    if (cur) setTimeout(function () { cur.scrollIntoView({ block: 'nearest' }); }, 250);
   }
+  function closeSheet() { $('nav-panel').classList.remove('open'); $('sheet-back').classList.remove('open'); }
+  function sheetOpen() { return $('nav-panel').classList.contains('open'); }
   function refreshNav() {
     var cells = $('nav-grid').children;
     for (var i = 0; i < cells.length; i++) {
@@ -161,13 +164,17 @@
     }
     var n = answeredCount();
     $('e-count').textContent = n + ' / ' + Q.length + ' answered';
+    $('e-pos').textContent = 'Q ' + (state.current + 1) + ' of ' + Q.length;
+    $('nav-open-lbl').textContent = n + '/' + Q.length;
+    $('nav-open').setAttribute('aria-label', 'Question list, ' + n + ' of ' + Q.length + ' answered');
+    $('nav-panel').querySelector('h3').textContent = 'Questions · ' + n + '/' + Q.length + ' answered';
     $('e-progress').style.width = (n / Q.length * 100) + '%';
   }
 
   function renderQ() {
     var i = state.current, q = Q[i];
     $('q-meta').innerHTML = '<b style="color:var(--text)">Question ' + (i + 1) + ' of ' + Q.length + '</b>' +
-      '<span>·</span><span>' + esc(q.subject) + '</span>';
+      '<span class="dot">·</span><span>' + esc(q.subject) + '</span>';
     $('q-stem').textContent = q.question;
     var box = $('q-opts'); box.innerHTML = '';
     q.options.forEach(function (o, k) {
@@ -182,7 +189,8 @@
     $('q-next').textContent = i === Q.length - 1 ? 'Review & submit' : 'Next →';
     var f = $('q-flag');
     f.classList.toggle('flagged', !!state.flagged[q.id]);
-    f.textContent = state.flagged[q.id] ? '⚑ Flagged' : '⚑ Flag for review';
+    f.querySelector('.flag-lbl').textContent = state.flagged[q.id] ? '\u00a0Flagged' : '\u00a0Flag for review';
+    f.setAttribute('aria-pressed', state.flagged[q.id] ? 'true' : 'false');
     $('q-clear').classList.toggle('hidden', state.answers[q.id] == null);
     refreshNav();
   }
@@ -195,7 +203,8 @@
   function go(i) {
     if (i < 0 || i >= Q.length) return;
     state.current = i; save(); renderQ();
-    $('q-card').scrollIntoView({ block: 'nearest' });
+    if (window.innerWidth <= 820) window.scrollTo(0, 0);
+    else $('q-card').scrollIntoView({ block: 'nearest' });
   }
 
   $('q-prev').onclick = function () { go(state.current - 1); };
@@ -206,6 +215,22 @@
   $('q-clear').onclick = function () { delete state.answers[Q[state.current].id]; save(); renderQ(); };
   $('e-submit').onclick = openConfirm;
 
+  (function swipe() {
+    var sx = 0, sy = 0, st = 0, tracking = false;
+    var card = $('q-card');
+    card.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 1) { tracking = false; return; }
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); tracking = true;
+    }, { passive: true });
+    card.addEventListener('touchend', function (e) {
+      if (!tracking) return; tracking = false;
+      var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Date.now() - st > 600 || Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.5) return;
+      if (dx < 0) { if (state.current < Q.length - 1) go(state.current + 1); }
+      else go(state.current - 1);
+    }, { passive: true });
+  })();
+
   function toggleFlag() {
     var id = Q[state.current].id;
     if (state.flagged[id]) delete state.flagged[id]; else state.flagged[id] = true;
@@ -213,7 +238,7 @@
   }
 
   document.addEventListener('keydown', function (e) {
-    if ($('exam').classList.contains('hidden') || $('modal').classList.contains('open')) return;
+    if ($('exam').classList.contains('hidden') || $('modal').classList.contains('open') || sheetOpen()) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     var k = e.key.toUpperCase();
     var idx = LETTERS.indexOf(k);
@@ -226,6 +251,7 @@
 
   // ---------- confirm modal ----------
   function openConfirm() {
+    closeSheet();
     var n = answeredCount(), un = Q.length - n, fl = Object.keys(state.flagged).length;
     var msg = '<p style="margin:0">You have answered <b>' + n + '</b> of ' + Q.length + ' questions.</p>';
     if (un) msg += '<p style="margin:8px 0 0">' + un + ' unanswered question' + (un > 1 ? 's' : '') + ' will be marked as unanswered.</p>';
@@ -238,7 +264,7 @@
   $('m-cancel').onclick = closeConfirm;
   $('m-ok').onclick = function () { closeConfirm(); submit(false); };
   $('modal').addEventListener('click', function (e) { if (e.target === $('modal')) closeConfirm(); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeConfirm(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeConfirm(); closeSheet(); } });
 
   // ---------- scoring ----------
   function submit(timeUp) {
@@ -279,11 +305,11 @@
       stat('good', r.correct, 'Correct') + stat('bad', r.wrong, 'Wrong') + stat('', r.skipped, 'Unanswered') +
       stat('', pct + '%', 'Score');
 
-    var html = '<thead><tr><th>Subject</th><th class="num">Score</th><th style="width:40%">&nbsp;</th><th class="num">%</th></tr></thead><tbody>';
+    var html = '<thead><tr><th>Subject</th><th class="num">Score</th><th class="bar-col" style="width:40%">&nbsp;</th><th class="num">%</th></tr></thead><tbody>';
     r.order.forEach(function (s) {
       var x = r.subjects[s], p = Math.round(x.correct / x.total * 100);
       html += '<tr><td>' + esc(s) + '</td><td class="num">' + x.correct + ' / ' + x.total + '</td>' +
-        '<td><div class="bar"><div style="width:' + p + '%"></div></div></td><td class="num">' + p + '%</td></tr>';
+        '<td class="bar-col"><div class="bar"><div style="width:' + p + '%"></div></div></td><td class="num">' + p + '%</td></tr>';
     });
     $('r-subjects').innerHTML = html + '</tbody>';
 
@@ -331,7 +357,7 @@
       shown++;
       var card = el('article', 'card review ' + kind + ' stack');
       var verdict = { right: '✓ Correct', wrong: '✗ Wrong', skip: '— Not answered' }[kind];
-      var head = '<div class="q-meta" style="margin:0"><b style="color:var(--text)">Q' + (i + 1) + '</b><span>·</span><span>' +
+      var head = '<div class="q-meta" style="margin:0"><b style="color:var(--text)">Q' + (i + 1) + '</b><span class="dot">·</span><span>' +
         esc(q.subject) + ' — ' + esc(q.topic) + '</span>' +
         (q.domain === 'attitude' ? '<span class="pill warn">Attitude</span>' : '') +
         '<span class="spacer"></span><span class="verdict ' + kind + '">' + verdict + '</span></div>';
